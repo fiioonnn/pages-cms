@@ -66,6 +66,7 @@ import {
   FileStack,
   FileText,
   FolderOpen,
+  HardDrive,
   ListVideo,
   LogOut,
   Moon,
@@ -348,6 +349,13 @@ export function RepoSidebar() {
         label: "Collaborators",
         href: `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/collaborators`,
         icon: <Users className="size-4" />,
+      });
+
+      items.push({
+        key: "admin-storage",
+        label: "Storage",
+        href: `/${config.owner}/${config.repo}/${encodeURIComponent(config.branch)}/storage`,
+        icon: <HardDrive className="size-4" />,
       });
     }
 
