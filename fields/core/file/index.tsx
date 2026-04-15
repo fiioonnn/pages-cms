@@ -6,10 +6,13 @@ import { swapPrefix } from "@/lib/github-image";
 import { getSchemaByName } from "@/lib/schema";
 import { getFileExtension, extensionCategories, normalizeMediaPath } from "@/lib/utils/file";
 
+const isExternalUrl = (value: string) =>
+  value.startsWith("http://") || value.startsWith("https://");
+
 const read = (value: any, field: Field, config: Record<string, any>): string | string[] | null => {
   if (!value) return null;
   if (Array.isArray(value) && !value.length) return null;
-  
+
   const mediaConfig = (config?.object?.media?.length && field.options?.media !== false)
     ? field.options?.media && typeof field.options.media === 'string'
       ? getSchemaByName(config.object, field.options.media, "media")
@@ -21,6 +24,8 @@ const read = (value: any, field: Field, config: Record<string, any>): string | s
   if (Array.isArray(value)) {
     return value.map(v => read(v, field, config)) as string[];
   }
+
+  if (isExternalUrl(String(value))) return String(value);
 
   const normalizedValue = normalizeMediaPath(String(value));
   return swapPrefix(normalizedValue, mediaConfig.output, mediaConfig.input, true);
@@ -41,6 +46,8 @@ const write = (value: any, field: Field, config: Record<string, any>): string | 
   if (Array.isArray(value)) {
     return value.map(v => write(v, field, config)) as string[];
   }
+
+  if (isExternalUrl(String(value))) return String(value);
 
   const normalizedValue = normalizeMediaPath(String(value));
   return swapPrefix(normalizedValue, mediaConfig.input, mediaConfig.output);

@@ -7,10 +7,13 @@ import { getSchemaByName } from "@/lib/schema";
 import { getFileExtension, extensionCategories, normalizeMediaPath } from "@/lib/utils/file";
 
 // TODO: sanitize/normalize values on read (e.g. array to string, empty/invalid values)
+const isExternalUrl = (value: string) =>
+  value.startsWith("http://") || value.startsWith("https://");
+
 const read = (value: any, field: Field, config: Record<string, any>): string | string[] | null => {
   if (!value) return null;
   if (Array.isArray(value) && !value.length) return null;
-  
+
   const mediaConfig = (config?.object?.media?.length && field.options?.media !== false)
     ? field.options?.media && typeof field.options.media === 'string'
       ? getSchemaByName(config.object, field.options.media, "media")
@@ -22,6 +25,9 @@ const read = (value: any, field: Field, config: Record<string, any>): string | s
   if (Array.isArray(value)) {
     return value.map(v => read(v, field, config)) as string[];
   }
+
+  // External URLs (S3/R2) are stored as-is, no prefix swap needed
+  if (isExternalUrl(String(value))) return String(value);
 
   const normalizedValue = normalizeMediaPath(String(value));
   return swapPrefix(normalizedValue, mediaConfig.output, mediaConfig.input, true);
@@ -42,6 +48,10 @@ const write = (value: any, field: Field, config: Record<string, any>): string | 
   if (Array.isArray(value)) {
     return value.map(v => write(v, field, config)) as string[];
   }
+
+  // External URLs (S3/R2) are stored as-is, no prefix swap needed
+  if (isExternalUrl(String(value))) return String(value);
+
   const normalizedValue = normalizeMediaPath(String(value));
   return swapPrefix(normalizedValue, mediaConfig.input, mediaConfig.output);
 };
@@ -136,11 +146,14 @@ const schema = (field: Field, configObject?: Record<string, any>) => {
     const checkPath = (path: unknown) => {
       if (typeof path !== 'string' || path === "") return;
 
+      // External URLs (S3/R2) skip path prefix validation
+      const external = path.startsWith("http://") || path.startsWith("https://");
+
       // Path Prefix Check
-      if (mediaInputPath && !path.startsWith(mediaInputPath)) {
+      if (!external && mediaInputPath && !path.startsWith(mediaInputPath)) {
         ctx.addIssue({ code: ZodIssueCode.custom, message: `Path must start with the media directory: ${mediaInputPath}` });
       }
-      
+
       // Extension Check
       const fileExtension = getFileExtension(path);
       if (allowedExtensions && allowedExtensions.length > 0) {
