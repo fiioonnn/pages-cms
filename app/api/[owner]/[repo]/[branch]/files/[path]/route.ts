@@ -14,6 +14,7 @@ import { createHttpError, toErrorResponse } from "@/lib/api-error";
 import mergeWith from "lodash.mergewith";
 import { buildCommitTokens, resolveCommitIdentity, resolveCommitMessage } from "@/lib/commit-message";
 import { requireApiUserSession } from "@/lib/session-server";
+import { getStorageProvider } from "@/lib/storage/factory";
 
 /**
  * Create, update and delete individual files in a GitHub repository.
@@ -195,6 +196,33 @@ export async function POST(
         throw new Error(`Invalid type "${data.type}".`);
     }
 
+    // External storage: upload media to S3/R2 instead of GitHub
+    if (data.type === "media" && contentBase64 !== "") {
+      const { provider: storageProvider, isExternal } = await getStorageProvider(
+        params.owner, params.repo, params.branch, token,
+      );
+
+      if (isExternal) {
+        const fileBuffer = Buffer.from(contentBase64, "base64");
+        const mimeType = data.contentType || "application/octet-stream";
+        const { url, size } = await storageProvider.upload(fileBuffer, normalizedPath, mimeType);
+
+        return Response.json({
+          status: "success",
+          message: `File "${normalizedPath}" uploaded successfully.`,
+          data: {
+            type: "file",
+            sha: null,
+            name: normalizedPath.split("/").pop(),
+            path: normalizedPath,
+            extension: getFileExtension(normalizedPath),
+            size,
+            url,
+          },
+        });
+      }
+    }
+
     const commitIdentity = resolveCommitIdentity({
       configObject: config?.object,
       identityOverride: schemaCommitIdentity,
@@ -208,7 +236,7 @@ export async function POST(
           email: user.email,
         }
       : undefined;
-    
+
     const response = await githubSaveFile(
       token,
       params.owner,
@@ -519,6 +547,27 @@ export async function DELETE(
         break;
     }
 
+    // External storage: delete from S3/R2 instead of GitHub
+    if (type === "media") {
+      const { provider: storageProvider, isExternal } = await getStorageProvider(
+        params.owner, params.repo, params.branch, token,
+      );
+
+      if (isExternal) {
+        await storageProvider.delete(normalizedPath);
+
+        return Response.json({
+          status: "success",
+          message: `File "${normalizedPath}" deleted successfully.`,
+          data: {
+            sha: null,
+            name: normalizedPath.split("/").pop(),
+            path: normalizedPath,
+          },
+        });
+      }
+    }
+
     const commitIdentity = resolveCommitIdentity({
       configObject: config.object,
       identityOverride: schemaCommitIdentity,
@@ -532,7 +581,7 @@ export async function DELETE(
           email: user.email,
         }
       : undefined;
-    
+
     const octokit = createOctokitInstance(token);
     const response = await octokit.rest.repos.deleteFile({
       owner: params.owner,

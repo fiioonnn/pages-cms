@@ -26,17 +26,23 @@ export function Thumbnail({
   
   useEffect(() => {
     const fetchRawUrl = async () => {
-      if (path) {
-        setError(null);
-        if (!rawUrl) setRawUrl(null);
-        try {
-          const url = await getRawUrl(owner, repo, branch, name, path, isPrivate);
-          setRawUrl(url);
-        } catch (error: any) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.warn(errorMessage);
-          setError(error.message);
-        }
+      if (!path) return;
+
+      // If path is already an absolute URL (S3/R2), use it directly
+      if (path.startsWith("http://") || path.startsWith("https://")) {
+        setRawUrl(path);
+        return;
+      }
+
+      setError(null);
+      if (!rawUrl) setRawUrl(null);
+      try {
+        const url = await getRawUrl(owner, repo, branch, name, path, isPrivate);
+        setRawUrl(url);
+      } catch (error: any) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.warn(errorMessage);
+        setError(error.message);
       }
     };
 
