@@ -34,6 +34,7 @@ export function FileOptions({
   name,
   canDelete,
   canRename,
+  externalUrl,
   portalProps,
   onDelete,
   onRename,
@@ -45,6 +46,7 @@ export function FileOptions({
   name?: string;
   canDelete?: boolean;
   canRename?: boolean;
+  externalUrl?: string | null;
   portalProps?: any;
   onDelete?: (path: string) => void;
   onRename?: (path: string, newPath: string) => void;
@@ -116,8 +118,8 @@ export function FileOptions({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" portalProps={portalProps}>
             <DropdownMenuItem asChild>
-              <a href={`https://github.com/${config.owner}/${config.repo}/blob/${encodeURIComponent(config.branch)}/${path}`} target="_blank">
-                View on GitHub
+              <a href={externalUrl || `https://github.com/${config.owner}/${config.repo}/blob/${encodeURIComponent(config.branch)}/${path}`} target="_blank">
+                {externalUrl ? "View in storage" : "View on GitHub"}
                 <ArrowUpRight className="size-3 text-muted-foreground ml-auto" />
               </a>
             </DropdownMenuItem>

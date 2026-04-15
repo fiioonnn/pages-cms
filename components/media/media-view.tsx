@@ -160,6 +160,7 @@ const MediaFileTile = memo(function MediaFileTile({
           sha={item.sha || ""}
           type="media"
           name={mediaName}
+          externalUrl={item.url && (item.url.startsWith("http://") || item.url.startsWith("https://")) ? item.url : undefined}
           onDelete={onDelete}
           onRename={onRename}
           portalProps={{ container: portalContainer }}
@@ -185,7 +186,7 @@ const MediaFileTile = memo(function MediaFileTile({
         type="checkbox"
         className="peer sr-only"
         checked={isSelected}
-        onChange={() => onSelect(item.path)}
+        onChange={() => onSelect(item.url && (item.url.startsWith("http://") || item.url.startsWith("https://")) ? item.url : item.path)}
       />
       {content}
     </label>

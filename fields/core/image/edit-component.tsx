@@ -198,7 +198,11 @@ const EditComponent = forwardRef((props: EditorProps, ref: React.Ref<HTMLInputEl
   const handleUpload = useCallback((fileData: FileSaveData) => {
     if (!fileData.path) return;
 
-    const normalizedPath = normalizeMediaPath(fileData.path);
+    // For external storage (S3/R2), use the full URL; for GitHub, use the relative path
+    const url = fileData.url;
+    const normalizedPath = (url && (url.startsWith("http://") || url.startsWith("https://")))
+      ? url
+      : normalizeMediaPath(fileData.path);
 
     if (isMultiple) {
       setFiles((prev) => {

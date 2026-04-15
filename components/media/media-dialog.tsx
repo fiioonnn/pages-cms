@@ -72,7 +72,8 @@ const MediaDialog = forwardRef(({
   }, [isSubmitting, onSubmit, selectedImages]);
 
   const handleUpload = useCallback((entry: FileSaveData) => {
-    const path = entry.path;
+    const url = entry.url;
+    const path = (url && (url.startsWith("http://") || url.startsWith("https://"))) ? url : entry.path;
     if (!path) return;
     setSelectedImages((prev) => {
       const next = [...prev, path];
