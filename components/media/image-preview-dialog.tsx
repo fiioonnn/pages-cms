@@ -31,7 +31,7 @@ interface ImagePreviewDialogProps {
 }
 
 const ASPECT_OPTIONS = [
-  { label: "Free", value: undefined },
+  { label: "Free", value: 0 },
   { label: "16:9", value: 16 / 9 },
   { label: "4:3", value: 4 / 3 },
   { label: "1:1", value: 1 },
@@ -50,7 +50,8 @@ export function ImagePreviewDialog({
   const [editing, setEditing] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [aspect, setAspect] = useState<number | undefined>(undefined);
+  const [naturalAspect, setNaturalAspect] = useState(4 / 3);
+  const [aspect, setAspect] = useState<number>(0); // 0 = free (uses natural aspect)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [compress, setCompress] = useState(false);
   const [quality, setQuality] = useState(0.8);
@@ -64,7 +65,7 @@ export function ImagePreviewDialog({
     setEditing(false);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
-    setAspect(undefined);
+    setAspect(0);
     setCroppedAreaPixels(null);
     setCompress(false);
     setQuality(0.8);
@@ -157,10 +158,13 @@ export function ImagePreviewDialog({
                 image={imageUrl}
                 crop={crop}
                 zoom={zoom}
-                aspect={aspect}
+                aspect={aspect === 0 ? naturalAspect : aspect}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
                 onCropComplete={onCropComplete}
+                onMediaLoaded={(mediaSize) => {
+                  setNaturalAspect(mediaSize.naturalWidth / mediaSize.naturalHeight);
+                }}
               />
             </div>
 
