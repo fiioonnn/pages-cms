@@ -8,7 +8,6 @@ import { getSchemaByName } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { requireApiSuccess } from "@/lib/api-client";
 import type { FileSaveData } from "@/types/api";
-import { ImageCropDialog } from "./image-crop-dialog";
 
 interface MediaUploadContextValue {
   handleFiles: (files: File[]) => Promise<void>;
@@ -50,9 +49,6 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
     [media, config.object]
   );
 
-  const [cropFile, setCropFile] = useState<File | null>(null);
-  const [cropResolve, setCropResolve] = useState<((file: File) => void) | null>(null);
-
   const accept = useMemo(() => {
     if (!configMedia?.extensions && !extensions) return undefined;
     
@@ -67,15 +63,25 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
       : undefined;
   }, [extensions, configMedia?.extensions]);
 
-  const processFile = useCallback((file: File): Promise<File> => {
-    if (!file.type.startsWith("image/")) {
-      return Promise.resolve(file);
+  const AUTO_COMPRESS_THRESHOLD = 3 * 1024 * 1024; // 3 MB
+
+  const processFile = useCallback(async (file: File): Promise<File> => {
+    if (!file.type.startsWith("image/") || file.size <= AUTO_COMPRESS_THRESHOLD) {
+      return file;
     }
 
-    return new Promise<File>((resolve) => {
-      setCropFile(file);
-      setCropResolve(() => resolve);
-    });
+    try {
+      const imageCompression = (await import("browser-image-compression")).default;
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 2.5,
+        maxWidthOrHeight: 4096,
+        useWebWorker: true,
+        preserveExif: true,
+      });
+      return new File([compressed], file.name, { type: compressed.type || file.type });
+    } catch {
+      return file;
+    }
   }, []);
 
   const handleFiles = useCallback(async (files: File[]) => {
@@ -143,22 +149,6 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
   return (
     <MediaUploadContext.Provider value={contextValue}>
       {children}
-      {cropFile && cropResolve && (
-        <ImageCropDialog
-          file={cropFile}
-          open={true}
-          onComplete={(result) => {
-            cropResolve(result);
-            setCropFile(null);
-            setCropResolve(null);
-          }}
-          onSkip={() => {
-            cropResolve(cropFile);
-            setCropFile(null);
-            setCropResolve(null);
-          }}
-        />
-      )}
     </MediaUploadContext.Provider>
   );
 }
