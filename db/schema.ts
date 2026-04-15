@@ -190,6 +190,29 @@ const actionRunTable = pgTable("action_run", {
   idx_action_run_workflowRunId: uniqueIndex("idx_action_run_workflowRunId").on(table.workflowRunId),
 }));
 
+const projectStorageTable = pgTable("project_storage", {
+  id: serial("id").primaryKey(),
+  owner: text("owner").notNull(),
+  repo: text("repo").notNull(),
+  provider: text("provider").notNull().default("github"),
+  bucket: text("bucket"),
+  accountId: text("account_id"),
+  accessKeyId: text("access_key_id"),
+  accessKeyIv: text("access_key_iv"),
+  secretAccessKey: text("secret_access_key"),
+  secretKeyIv: text("secret_key_iv"),
+  publicUrl: text("public_url"),
+  region: text("region"),
+  endpoint: text("endpoint"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, table => ({
+  uq_project_storage_owner_repo: uniqueIndex("uq_project_storage_owner_repo").on(
+    sql`lower(${table.owner})`,
+    sql`lower(${table.repo})`,
+  ),
+}));
+
 export {
   userTable,
   sessionTable,
@@ -201,5 +224,6 @@ export {
   cacheFileTable,
   cacheFileMetaTable,
   cachePermissionTable,
-  actionRunTable
+  actionRunTable,
+  projectStorageTable
 };
