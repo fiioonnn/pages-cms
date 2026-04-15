@@ -8,6 +8,7 @@ import { getSchemaByName } from "@/lib/schema";
 import { cn } from "@/lib/utils";
 import { requireApiSuccess } from "@/lib/api-client";
 import type { FileSaveData } from "@/types/api";
+import { ImageCropDialog } from "./image-crop-dialog";
 
 interface MediaUploadContextValue {
   handleFiles: (files: File[]) => Promise<void>;
@@ -49,6 +50,9 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
     [media, config.object]
   );
 
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropResolve, setCropResolve] = useState<((file: File) => void) | null>(null);
+
   const accept = useMemo(() => {
     if (!configMedia?.extensions && !extensions) return undefined;
     
@@ -63,11 +67,24 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
       : undefined;
   }, [extensions, configMedia?.extensions]);
 
+  const processFile = useCallback((file: File): Promise<File> => {
+    if (!file.type.startsWith("image/")) {
+      return Promise.resolve(file);
+    }
+
+    return new Promise<File>((resolve) => {
+      setCropFile(file);
+      setCropResolve(() => resolve);
+    });
+  }, []);
+
   const handleFiles = useCallback(async (files: File[]) => {
     try {
       for (const file of files) {
+        const processedFile = await processFile(file);
+
         const uploadFilename = getUploadFileName(
-          file.name,
+          processedFile.name,
           rename ?? configMedia?.rename,
         );
 
@@ -79,7 +96,7 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
               resolve(base64Content);
             };
             reader.onerror = () => reject(new Error("Failed to read file"));
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(processedFile);
           });
 
           const fullPath = joinPathSegments([path ?? "", uploadFilename]);
@@ -90,6 +107,7 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
               type: "media",
               name: configMedia.name,
               content,
+              contentType: processedFile.type,
             }),
           });
 
@@ -113,7 +131,7 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
     } catch (error) {
       console.error(error);
     }
-  }, [config, path, configMedia?.name, configMedia?.rename, onUpload, rename]);
+  }, [config, path, configMedia?.name, configMedia?.rename, onUpload, rename, processFile]);
 
   const contextValue = useMemo(() => ({
     handleFiles,
@@ -125,6 +143,22 @@ function MediaUploadRoot({ children, path, onUpload, media, extensions, multiple
   return (
     <MediaUploadContext.Provider value={contextValue}>
       {children}
+      {cropFile && cropResolve && (
+        <ImageCropDialog
+          file={cropFile}
+          open={true}
+          onComplete={(result) => {
+            cropResolve(result);
+            setCropFile(null);
+            setCropResolve(null);
+          }}
+          onSkip={() => {
+            cropResolve(cropFile);
+            setCropFile(null);
+            setCropResolve(null);
+          }}
+        />
+      )}
     </MediaUploadContext.Provider>
   );
 }
